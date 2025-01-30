@@ -1,0 +1,58 @@
+# Use Jupyter PySpark Notebook as the base image
+FROM jupyter/pyspark-notebook:latest
+
+# Switch to root for installations
+USER root
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    libssl-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    wget \
+    llvm \
+    libncurses5-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libffi-dev \
+    liblzma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyEnv and make it available in all shell sessions
+RUN git clone https://github.com/pyenv/pyenv.git /root/.pyenv && \
+    echo 'export PYENV_ROOT="/root/.pyenv"' >> /root/.bashrc && \
+    echo 'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' >> /root/.bashrc && \
+    echo 'eval "$(pyenv init --path)"' >> /root/.bashrc
+
+# **Fix: Explicitly set PATH for PyEnv before running commands**
+RUN export PYENV_ROOT="/root/.pyenv" && \
+    export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH" && \
+    eval "$(pyenv init --path)" && \
+    pyenv install 3.11.6 && \
+    pyenv global 3.11.6
+
+# **Install Poetry for the jovyan user**
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# **Fix: Add Poetry to the system PATH**
+ENV PATH="/home/jovyan/.local/bin:$PATH"
+
+# Set up Poetry for virtual environments inside the project directory
+RUN poetry config virtualenvs.in-project true
+
+# Set Jupyter to detect multiple environments
+RUN echo "c.NotebookApp.kernel_spec_manager_class = 'nb_conda_kernels.KernelSpecManager'" >> /home/jovyan/.jupyter/jupyter_notebook_config.py
+
+# Switch back to jovyan user
+USER jovyan
+
+# Create a working directory
+WORKDIR /home/jovyan/work
+
+# Set up a default command
+CMD ["start-notebook.sh", "--NotebookApp.token=''"]

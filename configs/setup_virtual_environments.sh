@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e  # Exit on any error
+
+echo "----------------------------------------"
+echo "🚀 Starting virtual environments Setup with PyEnv"
+echo "----------------------------------------"
+
+# Check the status of PostgreSQL service
+echo "1. Creating environments..."
+pyenv virtualenv 3.11.6 dev-env
+pyenv virtualenv 3.11.6 prod-env
+
+echo "2. Activating dev environment on jupyter notebook..."
+pyenv activate dev-env
+pip install ipykernel
+python -m ipykernel install --user --name=dev-env --display-name "Python (Dev)"
+
+echo "3. Activating prod environment on jupyter notebook..."
+pyenv activate prod-env
+pip install ipykernel
+python -m ipykernel install --user --name=prod-env --display-name "Python (Prod)"
+
+echo "----------------------------------------"
+echo "✅ environments Setup Completed Successfully!"
+echo "----------------------------------------"
+
+echo "Available versions are:"
+pyenv versions
