@@ -1,7 +1,7 @@
 # Use Jupyter PySpark Notebook as the base image
 FROM jupyter/pyspark-notebook:latest
 
-# Switch to root for installations
+# Switch to root user for installations
 USER root
 
 # Install system dependencies
@@ -23,23 +23,24 @@ RUN apt-get update && apt-get install -y \
     liblzma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PyEnv and make it available in all shell sessions
-RUN git clone https://github.com/pyenv/pyenv.git /root/.pyenv && \
-    echo 'export PYENV_ROOT="/root/.pyenv"' >> /root/.bashrc && \
-    echo 'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' >> /root/.bashrc && \
-    echo 'eval "$(pyenv init --path)"' >> /root/.bashrc
+# Install PyEnv in a shared location (/opt/pyenv) for all users
+RUN git clone https://github.com/pyenv/pyenv.git /opt/pyenv && \
+    echo 'export PYENV_ROOT="/opt/pyenv"' >> /etc/profile && \
+    echo 'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' >> /etc/profile && \
+    echo 'eval "$(pyenv init --path)"' >> /etc/profile
 
-# **Fix: Explicitly set PATH for PyEnv before running commands**
-RUN export PYENV_ROOT="/root/.pyenv" && \
-    export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH" && \
-    eval "$(pyenv init --path)" && \
-    pyenv install 3.11.6 && \
+# **Fix: Ensure PyEnv is available to all users**
+ENV PYENV_ROOT="/opt/pyenv"
+ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"
+
+# Install Python 3.11.6 using PyEnv
+RUN pyenv install 3.11.6 && \
     pyenv global 3.11.6
 
-# **Install Poetry for the jovyan user**
+# Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
 
-# **Fix: Add Poetry to the system PATH**
+# **Ensure Poetry is in the PATH**
 ENV PATH="/home/jovyan/.local/bin:$PATH"
 
 # Set up Poetry for virtual environments inside the project directory
