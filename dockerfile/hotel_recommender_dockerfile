@@ -4,7 +4,7 @@ FROM jupyter/pyspark-notebook:latest
 # Switch to root user for installations
 USER root
 
-# Install system dependencies required for PyEnv
+# Install system dependencies required for PyEnv and Sudo
 RUN apt-get update && apt-get install -y \
     curl \
     git \
@@ -24,7 +24,17 @@ RUN apt-get update && apt-get install -y \
     libgdbm-dev \
     libnss3-dev \
     libgdbm-compat-dev \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
+
+# **Give jovyan sudo access and prevent password prompts**
+RUN usermod -aG sudo jovyan && \
+    echo "jovyan ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Ensure Poetry cache directories are writable by jovyan
+RUN mkdir -p /home/jovyan/.cache/pypoetry/virtualenvs && \
+    chown -R jovyan:users /home/jovyan/.cache/pypoetry && \
+    chmod -R u+rwx /home/jovyan/.cache/pypoetry
 
 # Switch to jovyan user to install PyEnv in home directory
 USER jovyan
@@ -41,17 +51,21 @@ RUN git clone https://github.com/pyenv/pyenv.git ~/.pyenv && \
 ENV PYENV_ROOT="/home/jovyan/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PYENV_ROOT/plugins/pyenv-virtualenv/bin:$PATH"
 
-# Install Python 3.11.6 using PyEnv
-RUN pyenv install 3.11.6 && pyenv global 3.11.6
+# **Ensure environment is sourced when running commands**
+SHELL ["/bin/bash", "-c"]
+RUN source ~/.bashrc && pyenv install 3.11.6 && pyenv global 3.11.6
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
+# Install Poetry and ensure it's in PATH
+RUN curl -sSL https://install.python-poetry.org | python3 - && \
+    export PATH="/home/jovyan/.local/bin:$PATH" && \
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && \
+    poetry config virtualenvs.path /home/jovyan/.cache/pypoetry/virtualenvs
 
 # Ensure Poetry is in the PATH
 ENV PATH="/home/jovyan/.local/bin:$PATH"
 
 # Set up Poetry for virtual environments inside the project directory
-RUN poetry config virtualenvs.in-project true
+RUN poetry config virtualenvs.in-project false
 
 # Set Jupyter to detect multiple environments
 RUN echo "c.NotebookApp.kernel_spec_manager_class = 'nb_conda_kernels.KernelSpecManager'" >> /home/jovyan/.jupyter/jupyter_notebook_config.py

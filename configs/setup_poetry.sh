@@ -11,7 +11,11 @@ echo "1. Poetry service installation status..."
 poetry install
 
 echo "1. Poetry packages installation status..."
-poetry add scikit-learn pandas
+poetry add $(cat requirements.txt)
+poetry add --group dev $(cat requirements-dev.txt)
+
+
+# poetry add scikit-learn pandas
 # poetry run python script.py
 # poetry build
 # poetry publish
