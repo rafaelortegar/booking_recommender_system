@@ -4,45 +4,50 @@ FROM jupyter/pyspark-notebook:latest
 # Switch to root user for installations
 USER root
 
-# Install system dependencies
+# Install system dependencies required for PyEnv
 RUN apt-get update && apt-get install -y \
     curl \
     git \
     build-essential \
     libssl-dev \
+    zlib1g-dev \
     libbz2-dev \
     libreadline-dev \
     libsqlite3-dev \
     wget \
-    llvm \
-    libncurses5-dev \
     libncursesw5-dev \
     xz-utils \
     tk-dev \
     libffi-dev \
     liblzma-dev \
+    python3-openssl \
+    libgdbm-dev \
+    libnss3-dev \
+    libgdbm-compat-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PyEnv in a shared location (/opt/pyenv) for all users
-RUN git clone https://github.com/pyenv/pyenv.git /opt/pyenv && \
-    git clone https://github.com/pyenv/pyenv-virtualenv.git /opt/pyenv/plugins/pyenv-virtualenv && \
-    echo 'export PYENV_ROOT="/opt/pyenv"' >> /etc/profile && \
-    echo 'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PATH"' >> /etc/profile && \
-    echo 'eval "$(pyenv init --path)"' >> /etc/profile && \
-    echo 'eval "$(pyenv virtualenv-init -)"' >> /etc/profile
+# Switch to jovyan user to install PyEnv in home directory
+USER jovyan
 
-# **Fix: Ensure PyEnv and PyEnv-VirtualEnv are available to all users**
-ENV PYENV_ROOT="/opt/pyenv"
+# Install PyEnv and PyEnv-VirtualEnv in home directory
+RUN git clone https://github.com/pyenv/pyenv.git ~/.pyenv && \
+    git clone https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv && \
+    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc && \
+    echo 'export PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PYENV_ROOT/plugins/pyenv-virtualenv/bin:$PATH"' >> ~/.bashrc && \
+    echo 'eval "$(pyenv init --path)"' >> ~/.bashrc && \
+    echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
+
+# Set environment variables for PyEnv
+ENV PYENV_ROOT="/home/jovyan/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PYENV_ROOT/shims:$PYENV_ROOT/plugins/pyenv-virtualenv/bin:$PATH"
 
 # Install Python 3.11.6 using PyEnv
-RUN pyenv install 3.11.6 && \
-    pyenv global 3.11.6
+RUN pyenv install 3.11.6 && pyenv global 3.11.6
 
 # Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
 
-# **Ensure Poetry is in the PATH**
+# Ensure Poetry is in the PATH
 ENV PATH="/home/jovyan/.local/bin:$PATH"
 
 # Set up Poetry for virtual environments inside the project directory
@@ -51,10 +56,7 @@ RUN poetry config virtualenvs.in-project true
 # Set Jupyter to detect multiple environments
 RUN echo "c.NotebookApp.kernel_spec_manager_class = 'nb_conda_kernels.KernelSpecManager'" >> /home/jovyan/.jupyter/jupyter_notebook_config.py
 
-# Switch back to jovyan user
-USER jovyan
-
-# Create a working directory
+# Set working directory
 WORKDIR /home/jovyan/work
 
 # Set up a default command

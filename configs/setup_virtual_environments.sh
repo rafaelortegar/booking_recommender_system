@@ -6,6 +6,14 @@ echo "----------------------------------------"
 echo "🚀 Starting virtual environments Setup with PyEnv"
 echo "----------------------------------------"
 
+echo 'eval "$(pyenv init --path)"' >> ~/.bashrc
+echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
+source ~/.bashrc
+
+eval "$(pyenv init --path)"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+
 # Check the status of PostgreSQL service
 echo "1. Creating environments..."
 pyenv virtualenv 3.11.6 dev-env
